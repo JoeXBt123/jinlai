@@ -13,7 +13,7 @@
         body {
             margin: 0;
             padding: 0;
-            overflow-x: hidden; /* 只禁止横向滚动 */
+            overflow: hidden;
             background-color: #ffffff;
             height: 100vh;
             display: flex;
@@ -56,139 +56,64 @@
     <script>
         const slider = document.getElementById('slider');
         let startX = 0;
-        let currentX = 0;
+        let moveX = 0;
+        let currentTranslate = 0;
+        let prevTranslate = 0;
         let isDragging = false;
-        let index = 0;
         const totalSlides = 3;
+        const slideWidth = window.innerWidth > 600 ? 600 : window.innerWidth;
 
         // 触摸开始
         slider.addEventListener('touchstart', (e) => {
-            startX = e.touches[0].clientX;
             isDragging = true;
+            startX = e.touches[0].clientX;
             slider.style.transition = 'none';
         }, { passive: true });
 
         // 触摸移动
         slider.addEventListener('touchmove', (e) => {
             if (!isDragging) return;
-            currentX = e.touches[0].clientX;
-            const diff = startX - currentX;
-            // 实时跟随手指移动
-            slider.style.transform = `translateX(calc(-${index * 100}% - ${diff}px))`;
+            moveX = e.touches[0].clientX - startX;
+            // 限制滑动范围，避免超出边界
+            const translate = prevTranslate + moveX;
+            if (translate > 0 || translate < -(slideWidth * (totalSlides - 1))) {
+                return;
+            }
+            slider.style.transform = `translateX(${translate}px)`;
         }, { passive: true });
 
         // 触摸结束
         slider.addEventListener('touchend', () => {
             isDragging = false;
-            const diff = startX - currentX;
-            const threshold = 50; // 滑动超过50px才翻页
+            const movedBy = moveX;
+            const threshold = slideWidth / 4; // 滑动超过1/4屏幕就翻页
 
-            if (diff > threshold && index < totalSlides - 1) {
-                index++; // 左滑到下一张
-            } else if (diff < -threshold && index > 0) {
-                index--; // 右滑回上一张
+            if (movedBy < -threshold && prevTranslate > -(slideWidth * (totalSlides - 1))) {
+                // 左滑：切换到下一张
+                prevTranslate -= slideWidth;
+            } else if (movedBy > threshold && prevTranslate < 0) {
+                // 右滑：切换到上一张
+                prevTranslate += slideWidth;
             }
 
-            // 回到对应位置，带平滑动画
+            // 强制修正边界
+            if (prevTranslate > 0) prevTranslate = 0;
+            if (prevTranslate < -(slideWidth * (totalSlides - 1))) {
+                prevTranslate = -(slideWidth * (totalSlides - 1));
+            }
+
+            // 应用最终位置，带平滑动画
             slider.style.transition = 'transform 0.3s ease-out';
-            slider.style.transform = `translateX(-${index * 100}%)`;
+            slider.style.transform = `translateX(${prevTranslate}px)`;
         });
-    </script>
-</body>
-</html><!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>左滑看图</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            margin: 0;
-            padding: 0;
-            overflow-x: hidden; /* 只禁止横向滚动 */
-            background-color: #ffffff;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .wrapper {
-            width: 100vw;
-            max-width: 600px;
-            height: auto;
-            overflow: hidden;
-            position: relative;
-        }
-        .slider {
-            display: flex;
-            transition: transform 0.3s ease-out;
-            will-change: transform;
-        }
-        .slide {
-            min-width: 100%;
-            flex-shrink: 0;
-        }
-        .slide img {
-            width: 100%;
-            height: auto;
-            display: block;
-            pointer-events: none;
-        }
-    </style>
-</head>
-<body>
-    <div class="wrapper">
-        <div class="slider" id="slider">
-            <div class="slide"><img src="img1.jpg" alt="第一张"></div>
-            <div class="slide"><img src="img2.jpg" alt="第二张"></div>
-            <div class="slide"><img src="img3.jpg" alt="第三张"></div>
-        </div>
-    </div>
 
-    <script>
-        const slider = document.getElementById('slider');
-        let startX = 0;
-        let currentX = 0;
-        let isDragging = false;
-        let index = 0;
-        const totalSlides = 3;
-
-        // 触摸开始
-        slider.addEventListener('touchstart', (e) => {
-            startX = e.touches[0].clientX;
-            isDragging = true;
-            slider.style.transition = 'none';
-        }, { passive: true });
-
-        // 触摸移动
-        slider.addEventListener('touchmove', (e) => {
-            if (!isDragging) return;
-            currentX = e.touches[0].clientX;
-            const diff = startX - currentX;
-            // 实时跟随手指移动
-            slider.style.transform = `translateX(calc(-${index * 100}% - ${diff}px))`;
-        }, { passive: true });
-
-        // 触摸结束
-        slider.addEventListener('touchend', () => {
-            isDragging = false;
-            const diff = startX - currentX;
-            const threshold = 50; // 滑动超过50px才翻页
-
-            if (diff > threshold && index < totalSlides - 1) {
-                index++; // 左滑到下一张
-            } else if (diff < -threshold && index > 0) {
-                index--; // 右滑回上一张
-            }
-
-            // 回到对应位置，带平滑动画
-            slider.style.transition = 'transform 0.3s ease-out';
-            slider.style.transform = `translateX(-${index * 100}%)`;
+        // 窗口大小变化时更新
+        window.addEventListener('resize', () => {
+            const newSlideWidth = window.innerWidth > 600 ? 600 : window.innerWidth;
+            const maxTranslate = -(newSlideWidth * (totalSlides - 1));
+            if (prevTranslate < maxTranslate) prevTranslate = maxTranslate;
+            if (prevTranslate > 0) prevTranslate = 0;
+            slider.style.transform = `translateX(${prevTranslate}px)`;
         });
     </script>
 </body>
